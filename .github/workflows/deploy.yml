@@ -1,0 +1,341 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Deployment Platform'
+        required: true
+        default: 'heroku'
+        type: choice
+        options:
+        - heroku
+        - railway
+        - render
+        - docker-registry
+      environment:
+        description: 'Environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+  
+  release:
+    types: [published]
+
+env:
+  PYTHON_VERSION: '3.10'
+  NODE_VERSION: '18'
+
+jobs:
+  prepare-deployment:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      short-sha: ${{ steps.version.outputs.short-sha }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Get version info
+      id: version
+      run: |
+        echo "version=$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        echo "short-sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+  deploy-heroku:
+    runs-on: ubuntu-latest
+    needs: prepare-deployment
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.platform == 'heroku') ||
+      github.event_name == 'release'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Create Heroku-specific files
+      run: |
+        # Create Procfile for Heroku
+        cat > Procfile << 'EOF'
+        web: python app.py
+        EOF
+        
+        # Create runtime.txt for Python version
+        echo "python-3.10.12" > runtime.txt
+        
+        # Create app.json for Heroku app metadata
+        cat > app.json << 'EOF'
+        {
+          "name": "SMP Salary Analyzer",
+          "description": "Modern web application for analyzing PDF salary slips",
+          "repository": "https://github.com/tejukargal/SMP-Salary-Analyser_Python",
+          "logo": "https://img.icons8.com/color/96/000000/analytics.png",
+          "keywords": ["python", "flask", "pdf", "salary", "analyzer"],
+          "env": {
+            "FLASK_ENV": {
+              "description": "Flask environment",
+              "value": "production"
+            },
+            "SECRET_KEY": {
+              "description": "Secret key for Flask sessions",
+              "generator": "secret"
+            }
+          },
+          "formation": {
+            "web": {
+              "quantity": 1,
+              "size": "free"
+            }
+          },
+          "buildpacks": [
+            {
+              "url": "heroku/python"
+            }
+          ]
+        }
+        EOF
+
+    - name: Deploy to Heroku
+      uses: akhileshns/heroku-deploy@v3.12.14
+      with:
+        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+        heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
+        heroku_email: ${{ secrets.HEROKU_EMAIL }}
+      if: env.HEROKU_API_KEY != ''
+      env:
+        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+
+    - name: Heroku deployment instructions
+      if: env.HEROKU_API_KEY == ''
+      run: |
+        echo "## 🚀 Heroku Deployment Instructions" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "To deploy to Heroku, add these secrets to your repository:" >> $GITHUB_STEP_SUMMARY
+        echo "- \`HEROKU_API_KEY\`: Your Heroku API key" >> $GITHUB_STEP_SUMMARY
+        echo "- \`HEROKU_APP_NAME\`: Your Heroku app name" >> $GITHUB_STEP_SUMMARY
+        echo "- \`HEROKU_EMAIL\`: Your Heroku account email" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Manual Deployment Commands:**" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "heroku create your-app-name" >> $GITHUB_STEP_SUMMARY
+        echo "git push heroku main" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  deploy-railway:
+    runs-on: ubuntu-latest
+    needs: prepare-deployment
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.platform == 'railway'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Create Railway configuration
+      run: |
+        # Create railway.json
+        cat > railway.json << 'EOF'
+        {
+          "$schema": "https://railway.app/railway.schema.json",
+          "build": {
+            "builder": "NIXPACKS"
+          },
+          "deploy": {
+            "startCommand": "python app.py",
+            "healthcheckPath": "/",
+            "healthcheckTimeout": 100,
+            "restartPolicyType": "ON_FAILURE",
+            "restartPolicyMaxRetries": 10
+          }
+        }
+        EOF
+        
+        # Create nixpacks.toml for Railway
+        cat > nixpacks.toml << 'EOF'
+        [phases.build]
+        cmds = ["pip install -r requirements.txt"]
+        
+        [phases.start]
+        cmd = "python app.py"
+        EOF
+
+    - name: Railway deployment instructions
+      run: |
+        echo "## 🚂 Railway Deployment Instructions" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Automated Deployment:**" >> $GITHUB_STEP_SUMMARY
+        echo "1. Connect your GitHub repo to Railway" >> $GITHUB_STEP_SUMMARY
+        echo "2. Railway will automatically detect the Python app" >> $GITHUB_STEP_SUMMARY
+        echo "3. Set environment variables in Railway dashboard" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Manual Deployment:**" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "railway login" >> $GITHUB_STEP_SUMMARY
+        echo "railway init" >> $GITHUB_STEP_SUMMARY
+        echo "railway up" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  deploy-render:
+    runs-on: ubuntu-latest
+    needs: prepare-deployment
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.platform == 'render'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Create Render configuration
+      run: |
+        # Create render.yaml
+        cat > render.yaml << 'EOF'
+        services:
+        - type: web
+          name: smp-salary-analyzer
+          env: python
+          buildCommand: "pip install -r requirements.txt"
+          startCommand: "python app.py"
+          plan: free
+          healthCheckPath: /
+          envVars:
+          - key: PYTHON_VERSION
+            value: 3.10.12
+          - key: FLASK_ENV
+            value: production
+        EOF
+
+    - name: Render deployment instructions
+      run: |
+        echo "## 🎨 Render Deployment Instructions" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Automated Deployment:**" >> $GITHUB_STEP_SUMMARY
+        echo "1. Connect your GitHub repo to Render" >> $GITHUB_STEP_SUMMARY
+        echo "2. Choose 'Web Service' deployment type" >> $GITHUB_STEP_SUMMARY
+        echo "3. Use these settings:" >> $GITHUB_STEP_SUMMARY
+        echo "   - Build Command: \`pip install -r requirements.txt\`" >> $GITHUB_STEP_SUMMARY
+        echo "   - Start Command: \`python app.py\`" >> $GITHUB_STEP_SUMMARY
+        echo "   - Environment: \`Python 3\`" >> $GITHUB_STEP_SUMMARY
+
+  build-docker-image:
+    runs-on: ubuntu-latest
+    needs: prepare-deployment
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.platform == 'docker-registry'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+      if: env.DOCKER_USERNAME != ''
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+    
+    - name: Create optimized Dockerfile
+      run: |
+        cat > Dockerfile << 'EOF'
+        # Multi-stage build for smaller image
+        FROM python:3.10-slim as builder
+        
+        WORKDIR /app
+        
+        # Install build dependencies
+        RUN apt-get update && apt-get install -y \
+            gcc \
+            && rm -rf /var/lib/apt/lists/*
+        
+        # Copy and install Python dependencies
+        COPY requirements.txt .
+        RUN pip install --user --no-cache-dir -r requirements.txt
+        
+        # Production stage
+        FROM python:3.10-slim
+        
+        WORKDIR /app
+        
+        # Copy Python packages from builder
+        COPY --from=builder /root/.local /root/.local
+        
+        # Copy application code
+        COPY . .
+        
+        # Create uploads directory
+        RUN mkdir -p uploads
+        
+        # Create non-root user
+        RUN adduser --disabled-password --gecos '' appuser && \
+            chown -R appuser:appuser /app
+        
+        USER appuser
+        
+        # Make sure scripts in .local are usable
+        ENV PATH=/root/.local/bin:$PATH
+        
+        # Expose port
+        EXPOSE 5000
+        
+        # Health check
+        HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+          CMD curl -f http://localhost:5000/ || exit 1
+        
+        # Run the application
+        CMD ["python", "app.py"]
+        EOF
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: ${{ env.DOCKER_USERNAME != '' }}
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/smp-salary-analyzer:latest
+          ${{ secrets.DOCKER_USERNAME }}/smp-salary-analyzer:${{ needs.prepare-deployment.outputs.version }}
+        platforms: linux/amd64,linux/arm64
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+      if: env.DOCKER_USERNAME != ''
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+
+    - name: Docker deployment instructions
+      if: env.DOCKER_USERNAME == ''
+      run: |
+        echo "## 🐳 Docker Deployment Instructions" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "To push to Docker registry, add these secrets:" >> $GITHUB_STEP_SUMMARY
+        echo "- \`DOCKER_USERNAME\`: Your Docker Hub username" >> $GITHUB_STEP_SUMMARY
+        echo "- \`DOCKER_PASSWORD\`: Your Docker Hub password/token" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Manual Docker Commands:**" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "docker build -t smp-salary-analyzer ." >> $GITHUB_STEP_SUMMARY
+        echo "docker run -p 5000:5000 smp-salary-analyzer" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+
+  deployment-status:
+    runs-on: ubuntu-latest
+    needs: [prepare-deployment, deploy-heroku, deploy-railway, deploy-render, build-docker-image]
+    if: always()
+    
+    steps:
+    - name: Deployment Summary
+      run: |
+        echo "## 🎯 SMP Salary Analyzer Deployment Status" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📋 Deployment Results:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Heroku**: ${{ needs.deploy-heroku.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Railway**: ${{ needs.deploy-railway.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Render**: ${{ needs.deploy-render.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Docker**: ${{ needs.build-docker-image.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🚀 Version: ${{ needs.prepare-deployment.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Quick Deploy Options:**" >> $GITHUB_STEP_SUMMARY
+        echo "- [![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)" >> $GITHUB_STEP_SUMMARY
+        echo "- [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template)" >> $GITHUB_STEP_SUMMARY
+        echo "- [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)" >> $GITHUB_STEP_SUMMARY
