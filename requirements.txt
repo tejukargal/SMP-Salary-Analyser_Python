@@ -1,0 +1,12 @@
+flask
+flask-cors
+pandas
+PyPDF2
+xlsxwriter
+openpyxl
+python-dateutil
+pytz
+six
+numpy
+pillow
+pdfplumber

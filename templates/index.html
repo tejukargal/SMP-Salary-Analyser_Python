@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMP Salary Board</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="wrap">
+        <header>
+            <h1>SMP Salary Board</h1>
+            <p>Upload PDF salary slips and analyze employee salary data with advanced search and filtering</p>
+            <h2 id="salaryPeriod"></h2>
+        </header>
+
+        <!-- PDF Upload Section -->
+        <section class="card upload-section">
+            <h3 style="margin-bottom: 20px; color: var(--text); font-size: 1.2rem;">Upload PDF Salary Slips</h3>
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Drop PDF files here or click to select</div>
+                <div class="upload-subtext">Support for multiple PDF files</div>
+                <button class="upload-button" onclick="document.getElementById('fileInput').click()">Choose Files</button>
+                <input type="file" id="fileInput" accept=".pdf" multiple>
+            </div>
+            
+            <div class="file-list" id="fileList"></div>
+            
+            <button class="process-button" id="processBtn" onclick="processFiles()" disabled>
+                Process Files
+            </button>
+        </section>
+
+        <!-- Analysis Section (hidden initially) -->
+        <div id="analysisSection" class="hidden">
+            <section class="card" id="controls">
+                <div class="search-container">
+                    <div class="autocomplete">
+                        <input type="text" id="searchInput" placeholder="Search by name, designation, department...">
+                    </div>
+                    <button id="searchBtn">Search</button>
+                    <button id="exportCsvBtn">Export CSV</button>
+                    <button id="exportPdfBtn">Export PDF</button>
+                    <button id="exportPdfDetailedBtn">Export PDF (Detailed)</button>
+                </div>
+
+                <div class="filter-container">
+                    <select id="monthFilter">
+                        <option value="">All Months</option>
+                        <option value="January">January</option>
+                        <option value="February">February</option>
+                        <option value="March">March</option>
+                        <option value="April">April</option>
+                        <option value="May">May</option>
+                        <option value="June">June</option>
+                        <option value="July">July</option>
+                        <option value="August">August</option>
+                        <option value="September">September</option>
+                        <option value="October">October</option>
+                        <option value="November">November</option>
+                        <option value="December">December</option>
+                    </select>
+
+                    <select id="yearFilter">
+                        <option value="">All Years</option>
+                        <option value="2022">2022</option>
+                        <option value="2023">2023</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                    </select>
+
+                    <select id="designationFilter">
+                        <option value="">All Designations</option>
+                        <!-- Options will be populated dynamically -->
+                    </select>
+
+                    <select id="departmentFilter">
+                        <option value="">All Departments</option>
+                        <!-- Options will be populated dynamically -->
+                    </select>
+
+                    <button id="resetFilters">Reset Filters</button>
+                </div>
+            </section>
+
+            <section class="summary-stats">
+                <div class="stat-card">
+                    <h3>Total Employees</h3>
+                    <p id="totalEmployees">0</p>
+                </div>
+                <div class="stat-card" id="allowancesCard">
+                    <h3>Total Allowances: <span id="totalAllowances">₹0</span></h3>
+                    <div class="breakdown-details" id="allowancesBreakdown"></div>
+                </div>
+                <div class="stat-card" id="deductionsCard">
+                    <h3>Total Deductions: <span id="totalDeductions">₹0</span></h3>
+                    <div class="breakdown-details" id="deductionsBreakdown"></div>
+                </div>
+            </section>
+
+            <section class="card table-container">
+                <table id="salaryTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Designation</th>
+                            <th>Department</th>
+                            <th>Month</th>
+                            <th>Year</th>
+                            <th>Basic Pay</th>
+                            <th>Gross Salary</th>
+                            <th>Total Deductions</th>
+                            <th>Net Salary</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- Data will be populated here -->
+                    </tbody>
+                </table>
+            </section>
+        </div>
+
+        <div id="popup" class="popup-container"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

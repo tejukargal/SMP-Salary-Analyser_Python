@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(d:\\Apps\\Html_SMP Salary Board_2/**)",
+      "Read(d:\\Apps\\Html_SMP Salary Board_2/**)",
+      "Read(d:\\Apps\\Html_SMP Salary Board_2/**)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
