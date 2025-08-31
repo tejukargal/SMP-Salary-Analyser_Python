@@ -97,7 +97,7 @@ header h2 {
 .upload-area {
   border: 2px dashed var(--border);
   border-radius: 12px;
-  padding: 40px 20px;
+  padding: 20px 15px;
   text-align: center;
   background: var(--input-bg);
   transition: all 0.3s ease;
@@ -117,15 +117,15 @@ header h2 {
 }
 
 .upload-icon {
-  font-size: 48px;
+  font-size: 32px;
   color: var(--muted);
-  margin-bottom: 15px;
+  margin-bottom: 8px;
 }
 
 .upload-text {
   color: var(--text);
-  font-size: 1.1rem;
-  margin-bottom: 10px;
+  font-size: 1rem;
+  margin-bottom: 6px;
 }
 
 .upload-subtext {
@@ -142,11 +142,11 @@ header h2 {
   color: #0b1020;
   border: 0;
   border-radius: 10px;
-  padding: 14px 22px;
+  padding: 12px 18px;
   font-weight: 700;
   cursor: pointer;
   transition: .2s transform ease;
-  margin-top: 15px;
+  margin-top: 10px;
 }
 
 .upload-button:hover {
